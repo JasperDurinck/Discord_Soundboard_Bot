@@ -8,6 +8,8 @@ from pydub import AudioSegment
 import shutil
 import pytube
 from pytube import YouTube
+import json
+from Sound_Commands_json_upload import update_json_list_for_app
 
 from discord.ui import View, Button, Item
 
@@ -28,15 +30,38 @@ bot = commands.Bot(
 
 #channel connect ID:
 channel_connect_ID = "Channel_ID"
+server_ID = 'server_ID'
 
 # Set up event listeners for when the bot connects to the Discord server
 #run
+
 @bot.event
 async def on_ready():
     print('Logged in as {0} ({0.id})'.format(bot.user))
     print('------')
     channel = bot.get_channel(channel_connect_ID)
     vc = await channel.connect()
+
+@bot.event
+async def on_message(message):
+    if "Soundboard Web Hook#0000" in str(message.author):
+        print("WebHook authorized")
+        print(message.author)
+        print(message.content)
+        
+        if message.content.startswith('!play'):
+            print('gets the command!')
+            sound_file_name = message.content.split('!play ')[1]
+            guild = bot.get_guild(server_ID) 
+            voice_client = discord.utils.get(bot.voice_clients, guild=guild)
+            if voice_client:
+                mp3_path = os.path.join(os.getcwd(), "audio_data_test_store", f"{sound_file_name}.mp3")  # Replace with the path to your audio file
+                voice_client.play(discord.FFmpegPCMAudio(mp3_path))
+                while voice_client.is_playing():
+                    await asyncio.sleep(1)
+                    
+    await bot.process_commands(message)
+
 
 class MyView(discord.ui.View):
     def __init__(self, ctx, bot):
@@ -157,6 +182,7 @@ async def play(ctx, sound_file_name):
         await asyncio.sleep(1)
 
 
+
 SOUND_DIRECTORY = "audio_data_test_store"
 SOUND_FILES = {}
 
@@ -185,6 +211,7 @@ async def button(ctx):
 
 @bot.command()
 async def list_files(ctx):
+    """Shows all sound names"""
     dir_path = os.path.join(os.getcwd(), "audio_data_test_store")
     files = os.listdir(dir_path)
     files_str = "\n".join(files)
@@ -192,6 +219,7 @@ async def list_files(ctx):
 
 @bot.command()
 async def remove(ctx, filename):
+    """Remove sound"""
     path = os.path.join(os.getcwd(), "audio_data_test_store", filename)
     try:
         os.remove(path)
@@ -201,6 +229,7 @@ async def remove(ctx, filename):
 
 @bot.command()
 async def rename(ctx, old_filename, new_filename):
+    """Rename sound"""
     old_path = os.path.join(os.getcwd(), "audio_data_test_store", old_filename)
     new_path = os.path.join(os.getcwd(), "audio_data_test_store", new_filename)
     try:
@@ -213,7 +242,7 @@ async def rename(ctx, old_filename, new_filename):
 
 @bot.command()
 async def docs(ctx):
-    """Displays documentation for the bot's commands. See github:  """
+    """Displays documentation for the bot's commands"""
     # Create an embed with a title and description
     embed = discord.Embed(title="Bot Documentation", description="Here are the available commands:")
 
@@ -226,6 +255,7 @@ async def docs(ctx):
 
 @bot.command()
 async def download(ctx, name):
+    """Download mp3 file from the bot"""
     # Check if the requested file exists in the sound directory
     file_path = os.path.join(SOUND_DIRECTORY, f"{name}.mp3")
     if not os.path.isfile(file_path):
@@ -346,7 +376,11 @@ async def youtube_download_sound_bit(ctx, arg, *args):
     await ctx.send(f"The sound bit has been downloaded and saved as `{name_arg}.mp3`.")
 
 
-
+@bot.command()
+async def update_APP_list(ctx):
+    """Update the list of commands in the external app"""
+    update_json_list_for_app()
+    await ctx.send('APP list updated successfully.')
 
 # Run the bot
-bot.run("BOT_TOKEN")
+bot.run("DISCORD_TOKEN")
