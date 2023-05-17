@@ -1,11 +1,11 @@
 import tkinter as tk
+from tkinter import *
 import requests
 from tkinter import ttk
 from tkinter import simpledialog, messagebox
 
 
-webhook_url = "DISCORD_Web_Hook_Key"
-        
+webhook_url = "DISCORD_Web_Hook_Key"     
 
 def update_json_list():
     url = "https://dl.dropboxusercontent.com/s/(your link)/audio_names.json" #!!!!change
@@ -25,18 +25,16 @@ def update_json_list():
     else:
         print(f"Failed to retrieve file. Status code: {response.status_code}")
 
-
 def send_message_to_discord_webhook(webhook_url, message_content):
         payload = {
-            "content": message_content
+            "content": message_content,
         }
         response = requests.post(webhook_url, json=payload)
-
 
 def play_sound(sound_name):
     # Implement the logic to play the sound based on the sound_name
     if sound_name == "update":
-        refresh_buttons()
+        app.refresh_buttons()
     elif sound_name == "settings":
         open_settings()
     elif sound_name == "Bot manager":
@@ -46,19 +44,9 @@ def play_sound(sound_name):
         message_content = f"!play {sound_name}"
         send_message_to_discord_webhook(webhook_url, message_content)
 
-def drag_window(event):
-    window.geometry(f"+{event.x_root - x_click_pos}+{event.y_root - y_click_pos}")
-
-def save_click_pos(event):
-    global x_click_pos, y_click_pos
-    x_click_pos = event.x
-    y_click_pos = event.y
-
-def on_mousewheel(event):
-    canvas.yview_scroll(-1 * int(event.delta/120), "units")
 
 def open_bot_manager():
-    bot_manager_window = tk.Toplevel(window)
+    bot_manager_window = tk.Toplevel(app)
     bot_manager_window.title("Bot Manager")
     bot_manager_window.config(bg="black")
 
@@ -87,7 +75,7 @@ def open_bot_manager():
     def select_button_for_remove(sound_name):
         confirmed = messagebox.askyesno("Confirmation", f"Are you sure you want to remove {sound_name}?")
         if confirmed:
-            message_content = f"*remove {sound_name}.mp3"
+            message_content = f"*remove {sound_name}"
             send_message_to_discord_webhook(webhook_url, message_content)
     # Create selection buttons for each audio file in the "Remove" tab
     for sound_name in list_audio_files[:-3]:
@@ -143,7 +131,7 @@ def open_bot_manager():
 
 # Function to set the button color and text color
 def open_settings():
-    settings_window = tk.Toplevel(window)
+    settings_window = tk.Toplevel(app)
     settings_window.title("Settings")
     settings_window.config(bg="black")
     settings_window.wm_attributes('-alpha', 0.7)
@@ -152,11 +140,11 @@ def open_settings():
     def set_window_size():
         width = int(width_slider.get())
         height = int(height_slider.get())
-        window.geometry(f"{width}x{height}")
+        app.geometry(f"{width}x{height}")
 
         # Resize the canvas to match the new window size
-        canvas.config(width=width, height=height)
-        canvas.update_idletasks()
+        app.config(width=width, height=height)
+        app.update_idletasks()
 
     # Function to set the button color and text color
     def set_button_color():
@@ -173,7 +161,7 @@ def open_settings():
     # Function to set the transparency level
     def set_transparency_level():
         transparency = transparency_slider.get()
-        window.wm_attributes('-alpha', transparency)
+        app.wm_attributes('-alpha', transparency)
 
     # Create settings labels
     width_label = tk.Label(settings_window, text="Width:", bg="black", fg="white")
@@ -189,10 +177,12 @@ def open_settings():
     transparency_label.grid(row=3, column=0, padx=10, pady=10, sticky=tk.W)
 
     # Create settings sliders
-    width_slider = tk.Scale(settings_window, from_=200, to=800, orient=tk.HORIZONTAL, bg="black", fg="white")
+    width_slider = tk.Scale(settings_window, from_=100, to=800, orient=tk.HORIZONTAL, bg="black", fg="white")
+    width_slider.set(200)
     width_slider.grid(row=0, column=1, padx=10, pady=10)
 
-    height_slider = tk.Scale(settings_window, from_=200, to=600, orient=tk.HORIZONTAL, bg="black", fg="white")
+    height_slider = tk.Scale(settings_window, from_=100, to=600, orient=tk.HORIZONTAL, bg="black", fg="white")
+    height_slider.set(200)
     height_slider.grid(row=1, column=1, padx=10, pady=10)
 
     # Create button color dropdown
@@ -204,6 +194,7 @@ def open_settings():
 
     # Create transparency slider
     transparency_slider = tk.Scale(settings_window, from_=0, to=1, resolution=0.1, orient=tk.HORIZONTAL, bg="black", fg="white")
+    transparency_slider.set(0.3)  # Set the initial value to 0.3
     transparency_slider.grid(row=3, column=1, padx=10, pady=10)
 
     # Create buttons to save settings
@@ -219,74 +210,121 @@ def open_settings():
     # Update buttons list with dynamically created buttons
     buttons = []
 
-    def create_button(sound_name):
-        button = tk.Button(frame, text=sound_name, command=lambda name=sound_name: play_sound(name))
-        button.pack()
-        buttons.append(button)  # Add the button to the list
+class VerticalScrolledFrame(Frame):
+    def __init__(self, parent, *args, **kw):
+        Frame.__init__(self, parent, *args, **kw)
 
-    # Clear existing buttons
-    for button in frame.winfo_children():
-        button.destroy()
+        # create a canvas object for scrolling
+        canvas = Canvas(self, bd=0, highlightthickness=0)
+        canvas.configure(bg='white', highlightbackground='white')  # Make the canvas transparent
+        canvas.pack(side=LEFT, fill=BOTH, expand=TRUE)
 
-    # Create buttons dynamically
-    for sound_name in audio_names:
-        create_button(sound_name)
+    
+        # create a frame inside the canvas which will be scrolled with it
+        self.interior = interior = Frame(canvas)
+        interior_id = canvas.create_window(0, 0, window=interior, anchor=NW)
+        interior.configure(bg='white', highlightbackground='white')
 
-def refresh_buttons():
-    # Update the list of audio names
-    audio_names = update_json_list()
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-4 * (event.delta / 120)), "units")
+        self.interior.bind_all("<MouseWheel>", _on_mousewheel)
 
-    # Clear existing buttons
-    for button in frame.winfo_children():
-        button.destroy()
+        # track changes to the canvas and frame width and sync them
+        def _configure_interior(event):
+            # update the scrollable region
+            size = (interior.winfo_reqwidth(), interior.winfo_reqheight())
+            canvas.config(scrollregion="0 0 %s %s" % size)
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the canvas's width to fit the inner frame
+                canvas.config(width=interior.winfo_reqwidth())
+        interior.bind('<Configure>', _configure_interior)
 
-    # Create buttons dynamically
-    for sound_name in audio_names:
-        button = tk.Button(frame, text=sound_name, command=lambda name=sound_name: play_sound(name))
-        button.pack()
-
-#check for updata json list
-audio_names = update_json_list()
-
-# Create the tkinter window
-window = tk.Tk()
-window.title("Soundboard")
-
-# Remove title bar and buttons
-window.overrideredirect(True)
-
-# Set window attributes for transparency
-window.attributes('-transparentcolor', 'white')
-window.config(bg='white')
+        def _configure_canvas(event):
+            if interior.winfo_reqwidth() != canvas.winfo_width():
+                # update the inner frame's width to fill the canvas
+                canvas.itemconfigure(interior_id, width=canvas.winfo_width())
+        canvas.bind('<Configure>', _configure_canvas)
 
 
-# Create a canvas to hold buttons
-canvas = tk.Canvas(window, bg='white', highlightthickness=0)
-canvas.pack(fill=tk.BOTH, expand=True)
+class App_interface(Tk):
+    def __init__(self, *args, **kwargs):
+        Tk.__init__(self, *args, **kwargs)
 
-# Create a frame to hold the buttons
-frame = tk.Frame(canvas, bg='white')
-canvas.create_window((0, 0), window=frame, anchor='nw')
+        self.overrideredirect(True)  # Remove window border
+        self.attributes('-alpha', 0.5)  # Set window transparency
+        # Set window attributes for transparency
+        self.attributes('-transparentcolor', 'white')
+        self.config(bg='white')
 
-# Create buttons dynamically
-for sound_name in audio_names:
-    button = tk.Button(frame, text=sound_name, command=lambda name=sound_name: play_sound(name))
-    button.pack()
+        self.wm_attributes('-topmost', 1)  # Stay on the foreground
+        self.geometry("300x100")  # Set the window size here
 
-# Set window background transparency
-window.wm_attributes('-alpha', 0.5)
+        self.button_frame = Frame(self)
+        self.button_frame.pack()
 
-# Make window draggable
-x_click_pos = 0
-y_click_pos = 0
-window.bind("<ButtonPress-1>", save_click_pos)
-window.bind("<B1-Motion>", drag_window)
+        self.frame = VerticalScrolledFrame(self)
+        self.frame.pack()
 
-# Bind the mousewheel event to the canvas
-canvas.bind_all("<MouseWheel>", on_mousewheel)
+        self.buttons_visible = True  # Track visibility of buttons
 
-# Make window stay in the foreground
-window.wm_attributes('-topmost', 1)
+    def refresh_buttons(self):
 
-# Start the tkinter event loop
-window.mainloop()
+        #check for updata json list
+        audio_names = update_json_list()
+
+        self.buttons = []
+
+        # Clear existing buttons
+        for button in self.button_frame.winfo_children():
+            button.destroy()
+
+        self.toggle_button = Button(self.button_frame, text="Toggle Buttons", command=self.toggle_buttons)
+        self.toggle_button.pack()
+
+        # Clear existing buttons
+        for button in self.frame.interior.winfo_children():
+            button.destroy()
+
+        # Create buttons dynamically
+        for sound_name in audio_names:
+            button = Button(self.frame.interior, text=sound_name, command=lambda name=sound_name: play_sound(name))
+            button.pack()
+            self.buttons.append(button)  # Add the button to the hidden_buttons list
+            
+
+        # Make the window draggable
+        self.draggable = True
+        self.bind("<ButtonPress-1>", self.start_drag)
+        self.bind("<ButtonRelease-1>", self.stop_drag)
+        self.bind("<B1-Motion>", self.drag)
+
+    def toggle_buttons(self):
+        self.buttons_visible = not self.buttons_visible
+        if self.buttons_visible:
+            for button in self.buttons:
+                button.pack()
+        else:
+            for button in self.buttons:
+                button.pack_forget()
+
+    def start_drag(self, event):
+        if self.draggable:
+            self.x = event.x
+            self.y = event.y
+
+    def stop_drag(self, event):
+        if self.draggable:
+            self.x = None
+            self.y = None
+
+    def drag(self, event):
+                if self.draggable and self.x is not None and self.y is not None:
+                    deltax = event.x - self.x
+                    deltay = event.y - self.y
+                    x = self.winfo_x() + deltax
+                    y = self.winfo_y() + deltay
+                    self.geometry(f"+{x}+{y}")
+
+app = App_interface()
+app.refresh_buttons()
+app.mainloop()

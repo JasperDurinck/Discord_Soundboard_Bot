@@ -220,12 +220,12 @@ async def list_files(ctx):
 @bot.command()
 async def remove(ctx, filename):
     """Remove sound"""
-    path = os.path.join(os.getcwd(), "audio_data_test_store", filename)
+    path = os.path.join(os.getcwd(), "audio_data_test_store", f"{filename}.mp3")
     try:
         os.remove(path)
-        await ctx.send(f"The file {filename} has been successfully removed.")
+        await ctx.send(f"The file {filename}.mp3 has been successfully removed.")
     except FileNotFoundError:
-        await ctx.send(f"The file {filename} could not be found.")
+        await ctx.send(f"The file {filename}.mp3 could not be found.")
 
 @bot.command()
 async def rename(ctx, old_filename, new_filename):
