@@ -3,12 +3,145 @@ from tkinter import *
 import requests
 from tkinter import ttk
 from tkinter import simpledialog, messagebox
+import os
+import json
 
+class ClientInfo:
+    def __init__(self):
+        self.name = None
+        self.password = None
+        self.settings = {
+            'window_height': 200,
+            'window_width': 200,
+            'button_color': None,
+            'transparency': 0.6
+        }
+        self.favorites = []
 
-webhook_url = "DISCORD_Web_Hook_Key"     
+    def update_settings(self, field, value):
+        self.settings[field] = value
+    
+def log_in(login_type="change", client=None):
+    class LoggingClient(ClientInfo):
+        def __init__(self):
+            super().__init__()
+
+    def save_info(self, login_type):
+        self.name = name_entry.get()  # Get the entered name from the entry field
+        self.password = password_entry.get()  # Get the entered password from the entry field
+        if login_type == "change":
+            write_config(client, update=True)
+        root.destroy()  # Close the GUI window
+
+    # Create the main window
+    root = tk.Tk()
+
+    # Create a label and entry field for the name
+    name_label = tk.Label(root, text="Enter your name:")
+    name_label.pack()
+    name_entry = tk.Entry(root)
+    name_entry.pack()
+
+    # Create a label and entry field for the password
+    password_label = tk.Label(root, text="Enter your password:")
+    password_label.pack()
+    password_entry = tk.Entry(root, show="*")  # Use show="*" to display password characters as asterisks
+    password_entry.pack()
+
+    # Create a button to save the information
+    if login_type == "new":
+        client = LoggingClient()  # Create an instance of the Loggin_client class
+    elif login_type == "change" and client:
+        client = client
+    save_button = tk.Button(root, text="Login", command=lambda: save_info(client, login_type))
+    save_button.pack()
+    # Start the GUI event loop
+    root.mainloop()
+
+    return client
+
+def get_config_path():
+    # Get the user's documents directory
+    documents_dir = os.path.expanduser("~")
+
+    # Create a directory for your app if it doesn't exist
+    app_dir = os.path.join(documents_dir, "FF_Discord_SoundBoard")
+    os.makedirs(app_dir, exist_ok=True)
+
+    # Return the path to the config file
+    config_path = os.path.join(app_dir, "config.json")
+
+    # Check if the config file exists
+    if not os.path.exists(config_path):
+        # Create the config file
+        with open(config_path, "w") as file:
+            file.write("{}")  # Write an empty JSON object
+
+        return False, config_path
+
+    return True, config_path
+
+def read_config(config_path):
+
+    # Check if the config file exists
+    if os.path.exists(config_path):
+        # Read the config file
+        with open(config_path, "r") as file:
+            config = json.load(file)
+
+        # Create a ClientInfo object and populate it with the config values
+        client = ClientInfo()
+        client.name = config.get("name")
+        client.password = config.get("password")
+        client.settings = config.get("settings")
+        client.favorites = config.get("favorites")
+
+        return client
+
+    # Return None if the config file doesn't exist
+    return None
+
+def save_config(config):
+    config_there, config_path = get_config_path()
+    # Write the config to the file
+    with open(config_path, "w") as file:
+        json.dump(config, file, indent=4)
+
+def write_config(client, update=False):
+    # Read the existing config file
+    config = read_config(config_path)
+    # Check if the person exists in the config and if field and value are provided
+    if update:
+        # Update the specific field for the person
+        config = {
+            "name": client.name,
+            "password": client.password,
+            "settings": client.settings,
+            "favorites": client.favorites
+        }
+    else:
+        # Create a new dictionary for the person's data
+        config = {
+            "name": client.name,
+            "password": client.password,
+            "settings": client.settings,
+            "favorites": client.favorites
+        }
+
+    # Save the updated config
+    save_config(config)
+
+def update_settings(config_path, field, value):
+    client = read_config(config_path)
+
+    if client:
+        # Update the specific field in the client's settings
+        client.update_settings(field, value)
+        # Save the updated config
+        write_config(client, update=True)
 
 def update_json_list():
-    url = "https://dl.dropboxusercontent.com/s/(your link)/audio_names.json" #!!!!change
+    url = "https://dl.dropboxusercontent.com/s/!!!!!!YOURLINK!!!!!/audio_names.json" #link to the uploaded audio_names.json 
 
     # Send a GET request to retrieve the file content
     response = requests.get(url)
@@ -25,9 +158,9 @@ def update_json_list():
     else:
         print(f"Failed to retrieve file. Status code: {response.status_code}")
 
-def send_message_to_discord_webhook(webhook_url, message_content):
+def send_message_to_discord_webhook(webhook_url, message_content, client):
         payload = {
-            "content": message_content,
+            "content": f"{message_content} -client_name {client.name} -client_password {client.password}",
         }
         response = requests.post(webhook_url, json=payload)
 
@@ -42,8 +175,7 @@ def play_sound(sound_name):
     else:
         print(f"Playing sound: {sound_name}")
         message_content = f"!play {sound_name}"
-        send_message_to_discord_webhook(webhook_url, message_content)
-
+        send_message_to_discord_webhook(webhook_url, message_content, client)
 
 def open_bot_manager():
     bot_manager_window = tk.Toplevel(app)
@@ -63,7 +195,7 @@ def open_bot_manager():
         number_change_audio = simpledialog.askinteger("Change Audio Level", f"Enter the audio level for {sound_name}:", minvalue=-100)
         if number_change_audio is not None:
             message_content = f"*change_audio_level {sound_name} {number_change_audio}"
-            send_message_to_discord_webhook(webhook_url, message_content)
+            send_message_to_discord_webhook(webhook_url, message_content, client)
     # Create selection buttons for each audio file in the "Change Audio Level" tab
     for sound_name in list_audio_files[:-3]:
         selection_button = tk.Button(change_audio_level_tab, text=sound_name, command=lambda name=sound_name: select_button_for_change_audio(name))
@@ -76,7 +208,7 @@ def open_bot_manager():
         confirmed = messagebox.askyesno("Confirmation", f"Are you sure you want to remove {sound_name}?")
         if confirmed:
             message_content = f"*remove {sound_name}"
-            send_message_to_discord_webhook(webhook_url, message_content)
+            send_message_to_discord_webhook(webhook_url, message_content, client)
     # Create selection buttons for each audio file in the "Remove" tab
     for sound_name in list_audio_files[:-3]:
         selection_button = tk.Button(remove_tab, text=sound_name, command=lambda name=sound_name: select_button_for_remove(name))
@@ -89,7 +221,7 @@ def open_bot_manager():
         change_name = simpledialog.askstring("Rename", f"Enter new name for {sound_name}:")
         if change_name is not None:
             message_content = f"*rename {sound_name} {change_name}"
-            send_message_to_discord_webhook(webhook_url, message_content)
+            send_message_to_discord_webhook(webhook_url, message_content, client)
     # Create selection buttons for each audio file in the "Remove" tab
     for sound_name in list_audio_files[:-3]:
         selection_button = tk.Button(rename_tab, text=sound_name, command=lambda name=sound_name: select_button_for_rename(name))
@@ -100,7 +232,7 @@ def open_bot_manager():
     tab_control.add(update_app_list_tab, text="Update App List")
     def update_APP_list():
             message_content = f"*update_APP_list"
-            send_message_to_discord_webhook(webhook_url, message_content)
+            send_message_to_discord_webhook(webhook_url, message_content, client)
     # Create a button for updating the app list
     update_button = tk.Button(update_app_list_tab, text="Update App List", command=update_APP_list)
     update_button.pack()
@@ -117,7 +249,7 @@ def open_bot_manager():
                 if time_range is None:
                     time_range = ""
                 message_content = f"*youtube_download_sound_bit -n {new_sound_name} -url {url} -cut {time_range}"
-                send_message_to_discord_webhook(webhook_url, message_content)
+                send_message_to_discord_webhook(webhook_url, message_content, client)
 
     # Create a button for YouTube download
     download_button = tk.Button(youtube_download_tab, text="YouTube Download", command=youtube_download)
@@ -145,6 +277,8 @@ def open_settings():
         # Resize the canvas to match the new window size
         app.config(width=width, height=height)
         app.update_idletasks()
+        update_settings(config_path=config_path, field="window_width", value=width)
+        update_settings(config_path=config_path, field="window_height", value=height)
 
     # Function to set the button color and text color
     def set_button_color():
@@ -157,11 +291,16 @@ def open_settings():
         elif color == "Grey":
             for button in buttons:
                 button.config(bg="grey", fg="black")  # Set background color to grey and text color to white
+        
 
     # Function to set the transparency level
     def set_transparency_level():
         transparency = transparency_slider.get()
         app.wm_attributes('-alpha', transparency)
+        update_settings(config_path=config_path, field="transparency", value=transparency)
+
+    def relogin(client):
+        client = log_in(login_type="change", client=client)
 
     # Create settings labels
     width_label = tk.Label(settings_window, text="Width:", bg="black", fg="white")
@@ -178,11 +317,11 @@ def open_settings():
 
     # Create settings sliders
     width_slider = tk.Scale(settings_window, from_=100, to=800, orient=tk.HORIZONTAL, bg="black", fg="white")
-    width_slider.set(200)
+    width_slider.set(client.settings["window_width"])
     width_slider.grid(row=0, column=1, padx=10, pady=10)
 
     height_slider = tk.Scale(settings_window, from_=100, to=600, orient=tk.HORIZONTAL, bg="black", fg="white")
-    height_slider.set(200)
+    height_slider.set(client.settings["window_height"])
     height_slider.grid(row=1, column=1, padx=10, pady=10)
 
     # Create button color dropdown
@@ -194,7 +333,7 @@ def open_settings():
 
     # Create transparency slider
     transparency_slider = tk.Scale(settings_window, from_=0, to=1, resolution=0.1, orient=tk.HORIZONTAL, bg="black", fg="white")
-    transparency_slider.set(0.3)  # Set the initial value to 0.3
+    transparency_slider.set(client.settings["transparency"])  # Set the initial value to 0.3
     transparency_slider.grid(row=3, column=1, padx=10, pady=10)
 
     # Create buttons to save settings
@@ -207,10 +346,20 @@ def open_settings():
     set_transparency_button = tk.Button(settings_window, text="Set Transparency", command=set_transparency_level, bg="black", fg="white")
     set_transparency_button.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
 
+    # Create buttons to save settings
+    relogin_button = tk.Button(settings_window, text="re-login", command=lambda: relogin(client=client), bg="black", fg="white")
+    relogin_button.grid(row=7, column=0, columnspan=2, padx=10, pady=10)
+
+
     # Update buttons list with dynamically created buttons
     buttons = []
 
 class VerticalScrolledFrame(Frame):
+    """A pure Tkinter scrollable frame that actually works!
+    * Use the 'interior' attribute to place widgets inside the scrollable frame
+    * Construct and pack/place/grid normally
+    * This frame only allows vertical scrolling
+    """
     def __init__(self, parent, *args, **kw):
         Frame.__init__(self, parent, *args, **kw)
 
@@ -245,19 +394,18 @@ class VerticalScrolledFrame(Frame):
                 canvas.itemconfigure(interior_id, width=canvas.winfo_width())
         canvas.bind('<Configure>', _configure_canvas)
 
-
 class App_interface(Tk):
     def __init__(self, *args, **kwargs):
         Tk.__init__(self, *args, **kwargs)
 
         self.overrideredirect(True)  # Remove window border
-        self.attributes('-alpha', 0.5)  # Set window transparency
+        self.attributes('-alpha', client.settings["transparency"])  # Set window transparency
         # Set window attributes for transparency
         self.attributes('-transparentcolor', 'white')
         self.config(bg='white')
 
         self.wm_attributes('-topmost', 1)  # Stay on the foreground
-        self.geometry("300x100")  # Set the window size here
+        self.geometry(f"{client.settings['window_width']}x{client.settings['window_height']}")  # Set the window size here
 
         self.button_frame = Frame(self)
         self.button_frame.pack()
@@ -325,6 +473,17 @@ class App_interface(Tk):
                     y = self.winfo_y() + deltay
                     self.geometry(f"+{x}+{y}")
 
+config_there, config_path = get_config_path()
+
+if config_there:
+    client = read_config(config_path)
+elif config_there is False:
+    client = log_in(login_type="new")
+    write_config(client, update=False)
+    client = read_config(config_path)
+
+webhook_url = "https://discord.com/api/webhook!!!!YOUR_API_KEY!!!" # discord channel webhook api key
+      
 app = App_interface()
 app.refresh_buttons()
 app.mainloop()

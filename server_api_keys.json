@@ -1,0 +1,7 @@
+{
+  "channel_connect_ID": "YOUR_CHANNEL_CONNECT_ID",
+  "webhookbot_id": "YOUR_WEBHOOKBOT_ID",
+  "server_id": "YOUR_SERVER_ID",
+  "discord_bot_token": "YOUR_DISCORD_BOT_TOKEN",
+  "dropbox_access_token": "YOUR_DROPBOX_ACCESS_TOKEN"
+}
