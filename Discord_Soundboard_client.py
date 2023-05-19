@@ -17,11 +17,12 @@ class ClientInfo:
             'transparency': 0.6
         }
         self.favorites = []
+        self.dropbox_sounds_list_link_key = None
 
     def update_settings(self, field, value):
         self.settings[field] = value
     
-def log_in(login_type="change", client=None):
+def log_in(login_type="change", client=None, current_connect_key = None):
     class LoggingClient(ClientInfo):
         def __init__(self):
             super().__init__()
@@ -29,6 +30,7 @@ def log_in(login_type="change", client=None):
     def save_info(self, login_type):
         self.name = name_entry.get()  # Get the entered name from the entry field
         self.password = password_entry.get()  # Get the entered password from the entry field
+        self.dropbox_sounds_list_link_key =  Connect_key_entry.get()  # Get the entered password from the entry field
         if login_type == "change":
             write_config(client, update=True)
         root.destroy()  # Close the GUI window
@@ -47,6 +49,14 @@ def log_in(login_type="change", client=None):
     password_label.pack()
     password_entry = tk.Entry(root, show="*")  # Use show="*" to display password characters as asterisks
     password_entry.pack()
+
+    # Create a label and entry field for the password
+    Connect_key_label = tk.Label(root, text="Enter your Connect key:")
+    Connect_key_label.pack()
+    Connect_key_entry = tk.Entry(root)  # Use show="*" to display password characters as asterisks
+    Connect_key_entry.pack()
+    if current_connect_key:
+            Connect_key_entry.insert(0, current_connect_key)
 
     # Create a button to save the information
     if login_type == "new":
@@ -95,6 +105,7 @@ def read_config(config_path):
         client.password = config.get("password")
         client.settings = config.get("settings")
         client.favorites = config.get("favorites")
+        client.dropbox_sounds_list_link_key = config.get("dropbox_sounds_list_link_key")
 
         return client
 
@@ -117,7 +128,8 @@ def write_config(client, update=False):
             "name": client.name,
             "password": client.password,
             "settings": client.settings,
-            "favorites": client.favorites
+            "favorites": client.favorites,
+            "dropbox_sounds_list_link_key": client.dropbox_sounds_list_link_key
         }
     else:
         # Create a new dictionary for the person's data
@@ -125,7 +137,8 @@ def write_config(client, update=False):
             "name": client.name,
             "password": client.password,
             "settings": client.settings,
-            "favorites": client.favorites
+            "favorites": client.favorites,
+            "dropbox_sounds_list_link_key": client.dropbox_sounds_list_link_key
         }
 
     # Save the updated config
@@ -140,8 +153,8 @@ def update_settings(config_path, field, value):
         # Save the updated config
         write_config(client, update=True)
 
-def update_json_list():
-    url = "https://dl.dropboxusercontent.com/s/!!!!!!YOURLINK!!!!!/audio_names.json" #link to the uploaded audio_names.json 
+def update_json_list(dropbox_sounds_list_link_key):
+    url = f"https://dl.dropboxusercontent.com/s/{dropbox_sounds_list_link_key}/audio_names.json" 
 
     # Send a GET request to retrieve the file content
     response = requests.get(url)
@@ -183,7 +196,7 @@ def open_bot_manager():
     bot_manager_window.config(bg="black")
 
     # Retrieve the list of audio files
-    list_audio_files = update_json_list()
+    list_audio_files = update_json_list(client.dropbox_sounds_list_link_key)
 
     # Create Tab Control
     tab_control = ttk.Notebook(bot_manager_window)
@@ -300,7 +313,7 @@ def open_settings():
         update_settings(config_path=config_path, field="transparency", value=transparency)
 
     def relogin(client):
-        client = log_in(login_type="change", client=client)
+        client = log_in(login_type="change", client=client, current_connect_key=client.dropbox_sounds_list_link_key)
 
     # Create settings labels
     width_label = tk.Label(settings_window, text="Width:", bg="black", fg="white")
@@ -418,7 +431,7 @@ class App_interface(Tk):
     def refresh_buttons(self):
 
         #check for updata json list
-        audio_names = update_json_list()
+        audio_names = update_json_list(client.dropbox_sounds_list_link_key)
 
         self.buttons = []
 
@@ -482,7 +495,7 @@ elif config_there is False:
     write_config(client, update=False)
     client = read_config(config_path)
 
-webhook_url = "https://discord.com/api/webhook!!!!YOUR_API_KEY!!!" # discord channel webhook api key
+webhook_url = "https://discord.com/api/webhooks/YOUR_DISCORD_WEBHOOK_BOT"
       
 app = App_interface()
 app.refresh_buttons()
